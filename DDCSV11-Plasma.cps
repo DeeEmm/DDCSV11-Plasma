@@ -2,10 +2,12 @@
 DeeEmm Plasma post processor for DDCSV1.1 and Next Wave Automation CNC Shark controllers
 
 05.10.20 - Version 1.0.20100501
-      - Started to tidy comments
+      - Tidied comments
       - Removed incorrect M3 (spindle on) commands
       - Removed redundant Z move
       - Changed direction of Z probe action 
+      - Modified onPower function for probe operation
+      - Tested in Fusion 360 and on DDSCSV 
       
 01.10.20 	- Version 1.0.20100101
 			- Initial version based on https://www.brainright.com/Projects/CNCController
@@ -51,7 +53,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 description = "DDCSV1.1 Plasma V1";
 vendor = "DeeEmm";
-vendorUrl = "http://deeemm.com";
+vendorUrl = "https://github.com/DeeEmm/DDCSV11-Plasma";
 legal="BSD License";
 
 capabilities = CAPABILITY_JET;
