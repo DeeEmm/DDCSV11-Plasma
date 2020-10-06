@@ -1,20 +1,24 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1.1 and Next Wave Automation CNC Shark controllers
 
+06.10.20 - Version 1.0.20100601
+      	- Added manual probe offset 
+      	- Renamed existing probe offset function to probe distance
+
 05.10.20 - Version 1.0.20100501
-      - Tidied comments
-      - Removed incorrect M3 (spindle on) commands
-      - Removed redundant Z move
-      - Changed direction of Z probe action 
-      - Modified onPower function for probe operation
-      - Tested in Fusion 360 and on DDSCSV 
+      	- Tidied comments
+      	- Removed incorrect M3 (spindle on) commands
+      	- Removed redundant Z move
+     	 - Changed direction of Z probe action 
+      	- Modified onPower function for probe operation
+      	- Tested in Fusion 360 and on DDSCSV 
       
-01.10.20 	- Version 1.0.20100101
-			- Initial version based on https://www.brainright.com/Projects/CNCController
-			- Milling control changed for Plasma control
-			- Added pierce delay
-			- Added touch off routine
-			- Added user selectable cut + pierce height / pierce delay / Z offsets
+01.10.20 - Version 1.0.20100101
+	- Initial version based on https://www.brainright.com/Projects/CNCController
+	- Milling control changed for Plasma control
+	- Added pierce delay
+	- Added touch off routine
+	- Added user selectable cut + pierce height / pierce delay / Z offsets
 
 			
 
@@ -103,7 +107,8 @@ var currentCoolantMode = COOLANT_OFF;
  *******************/ 
 properties = {
   dwellInSeconds: true, 
-  G31_PROBE_OFFSET:-50,
+  G31_PROBE_DISTANCE:-50,
+  G31_PROBE_OFFSET:0,
   G31_PROBE_SPEED:200,
   G31_PIERCE_HEIGHT:4,
   G31_PIERCE_DELAY:5,
@@ -118,7 +123,8 @@ properties = {
  *******************/
 propertyDefinitions = {
 	dwellInSeconds: {title:"Dwell in seconds / milliseconds", description:"True = Seconds / False = Milliseconds", group:0, type:"number"},
-  G31_PROBE_OFFSET: {title:"Probe Offset", description:"Distance of probe operation", group:0, type:"number"},
+  G31_PROBE_DISTANCE: {title:"Probe Distance", description:"Distance of probe operation", group:0, type:"number"},
+  G31_PROBE_OFFSET: {title:"Probe Offset", description:"Torch offset adjustment", group:0, type:"number"},
   G31_PROBE_SPEED: {title:"Probe Speed", description:"Speed of probe operation", group:0, type:"number"},
 	G31_PIERCE_HEIGHT: {title:"Pierce Height", description:"Height for pierce operation", group:0, type:"number"},
 	G31_PIERCE_DELAY: {title:"Pierce Delay", description:"Time torch is held after pierce move", group:0, type:"number"},
@@ -359,8 +365,8 @@ function onPower(power) {
     writeComment("--- Touch Off ---");
     writeBlock(mFormat.format(101)); // Enable probe interrupt (skip function)
     writeBlock(gFormat.format(91)); // switch to relative positioning
-    writeBlock(gFormat.format(91), 'Z'+(properties.G31_PROBE_OFFSET), 'F'+(properties.G31_PROBE_SPEED)) ; // move downwards until interrupt triggers
-    writeBlock(gFormat.format(92), 'Z0'); // set z axis to zero 
+    writeBlock(gFormat.format(91), 'Z'+(properties.G31_PROBE_DISTANCE), 'F'+(properties.G31_PROBE_SPEED)) ; // move downwards until interrupt triggers
+    writeBlock(gFormat.format(92), 'Z'+(properties.G31_PROBE_OFFSET)); // set z axis to zero 
     writeBlock(gFormat.format(90)); // switch back to absolute positioning
     writeBlock(mFormat.format(102));  // disable probe interrupt (skip function) 
     writeBlock(gFormat.format(0), 'Z',(properties.G31_PIERCE_HEIGHT)); // move to pierce height
