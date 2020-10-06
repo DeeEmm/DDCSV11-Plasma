@@ -36,6 +36,14 @@ On a windows machine the path is different (sorry cannot help you there)
 - Change the settings for pierce height / pierce delay etc to suit your workpiece.
 - Hit the OK button to create your Gcode.  
 
+It is advisable to do a test run and note the actual torch height after the probe operation. You will most likely find a small difference, this is normal and is due to the distance between the torch touching the workpiece and the switch activating. Stop the machine and measure the actual cut height. Substract your programmed cut height from this value to give you your probe offset. Rune the post processor again but this time put this vaue into the 'Probe Offset' field. THen tun another test to confirm that the cut height has been corrected. Remember - offset values can be positive or negative.
+
+## Support
+
+You can try and catch me on discord - https://discord.gg/gxwc7q7
+
 ---
 
 If you find this file of use, please pay it forwards with a random act of kindness.
+
+
