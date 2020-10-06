@@ -40,9 +40,9 @@ It is advisable to do a test run and note the actual torch height after the prob
 
 ## Support
 
-You can try and catch me on discord - https://discord.gg/gxwc7q7
+You can try and catch me on discord - https://discord.gg/JVd5qAw
 
----
+## Donate
 
 If you find this file of use, please pay it forwards with a random act of kindness.
 
