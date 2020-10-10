@@ -23,14 +23,14 @@ You will need to make hidden files visible to be able to see the Library folder.
 On a windows machine the path is different (sorry cannot help you there)
 
 
-## Usage
+## Basic Usage
 
 - Make your 2D part in fusion 360
 - Go to the manufacture page
 - Create a setup using a plasma tool
 - Select the paths you want to cut by clicking on the paths 
-- Make sure that the cut direction arrows are on the outside of the workpiece
-- Go to the Additive menu and select post process
+- Make sure that the cut direction arrows are on the outside of the workpiece (or the inside of holes)
+- Right click on the operation and select post process
 - Select personal posts from the source dialog
 - Here you should see the post processor file you added above - DDCSV11-Plasma
 - Change the settings for pierce height / pierce delay etc to suit your workpiece.
@@ -38,9 +38,12 @@ On a windows machine the path is different (sorry cannot help you there)
 
 It is advisable to do a test run and note the actual torch height after the probe operation. You will most likely find a small difference, this is normal and is due to the distance between the torch touching the workpiece and the switch activating. Stop the machine and measure the actual cut height. Substract your programmed cut height from this value to give you your probe offset. Rune the post processor again but this time put this vaue into the 'Probe Offset' field. THen tun another test to confirm that the cut height has been corrected. Remember - offset values can be positive or negative.
 
+Individual parameter explainations can be found in the WIKI along with further details on how to use the spot marking function.
+
 Here's a video of a file made with the post processor demonstrating the sequence of operation
 
 [![DDCSV Plasma Post Processor](http://img.youtube.com/vi/roLoUEFVtAE/0.jpg)](http://www.youtube.com/watch?v=roLoUEFVtAE "Video Title")
+
 
 
 ## Further information
