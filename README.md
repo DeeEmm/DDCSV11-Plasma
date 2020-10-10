@@ -38,7 +38,7 @@ On a windows machine the path is different (sorry cannot help you there)
 
 It is advisable to do a test run and note the actual torch height after the probe operation. You will most likely find a small difference, this is normal and is due to the distance between the torch touching the workpiece and the switch activating. Stop the machine and measure the actual cut height. Substract your programmed cut height from this value to give you your probe offset. Rune the post processor again but this time put this vaue into the 'Probe Offset' field. THen tun another test to confirm that the cut height has been corrected. Remember - offset values can be positive or negative.
 
-Individual parameter explainations can be found in the WIKI along with further details on how to use the spot marking function.
+Individual parameter explainations can be found in the [WIKI](https://github.com/DeeEmm/DDCSV11-Plasma/wiki) along with further details on how to use the spot marking function.
 
 Here's a video of a file made with the post processor demonstrating the sequence of operation
 
