@@ -1,60 +1,34 @@
 /******************************************************************************* 
-DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
-
-11.10.20 - Version 1.0.20101102
-      - Added cut and feed in/out speeds
-
-09.10.20 - Version 1.0.20100901
-      - Added scratch start option (added torch type)
-      - Added Spot marking operation (using 'drilling' function)
-      - Tidied up the code removing unwanted / redundant stuff.
-      - Added better comments
-
-06.10.20 - Version 1.0.20100602
-      - Removed Z components from moves (relies on last set Z position) 
-      - Enabled both M101 (probe down) and M103 (probe up) as both required to generate offset
-      - Set G90 before G92 in probe routine
-      - Added additional comments to generated code
+DeeEmm Plasma post processor for DDCSV1.1 and Next Wave Automation CNC Shark controllers
 
 06.10.20 - Version 1.0.20100601
-      - Added manual probe offset 
-      - Renamed existing probe offset function to probe distance
+      	- Added manual probe offset 
+      	- Renamed existing probe offset function to probe distance
 
 05.10.20 - Version 1.0.20100501
-      - Tidied comments
-      - Removed incorrect M3 (spindle on) commands
-      - Removed redundant Z move
-      - Changed direction of Z probe action 
-      - Modified onPower function for probe operation
-      - Tested in Fusion 360 and on DDSCSV 
+      	- Tidied comments
+      	- Removed incorrect M3 (spindle on) commands
+      	- Removed redundant Z move
+     	 - Changed direction of Z probe action 
+      	- Modified onPower function for probe operation
+      	- Tested in Fusion 360 and on DDSCSV 
       
-01.10.20 	- Version 1.0.20100101
-			- Initial version based on https://www.brainright.com/Projects/CNCController
-			- Milling control changed for Plasma control
-			- Added pierce delay
-			- Added touch off routine
-			- Added user selectable cut + pierce height / pierce delay / Z offsets
+01.10.20 - Version 1.0.20100101
+	- Initial version based on https://www.brainright.com/Projects/CNCController
+	- Milling control changed for Plasma control
+	- Added pierce delay
+	- Added touch off routine
+	- Added user selectable cut + pierce height / pierce delay / Z offsets
 
 			
 
 Usage
 ******************************************************************************** 
-NOTE: Set WCS zero as 'stock box top' in setup. (top face of your object)
+NOTE: Set WCS zero as stock box top in setup. (top face of your object)
     This way when z probe measures face and zeros the Z axis, torch offsets will be correct
-        
+    
 - Copy this file to your Fusion360 'Post' folder on your local machine
 - Select DDCSV Post processor in CAM setup within Fusion 360
-- Adjust parameters in post processor parameters drop down to suit.
-
-NOTE: If you are using the Spot Marking option you will need to create a separate drilling operation 
-for the holes. Choose a generic 3 axis machine for this. The tool is unimportant but it is very important 
-to make sure the WCS origin for all operations is set to the same location. Best practice is to use the
-'Stock box point' at bottom left / top of stock 
-
-- After drilling operation has been generated change the operation type to 'cutting'
-- Make sure that the parent folder ('Settings') is highlighted when you run the post processor to include all tool paths
-- You will get a warning about multiple path and the WCS - this is normal (Refer note above)
-
 - More info on the Github page - https://github.com/DeeEmm/DDCSV11-Plasma
 
     
@@ -81,13 +55,12 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
  ******************************************************************************/
 
-description = "DDCSV Plasma V1.0.20100901";
+description = "DDCSV1.1 Plasma V1";
 vendor = "DeeEmm";
 vendorUrl = "https://github.com/DeeEmm/DDCSV11-Plasma";
 legal="BSD License";
 
-// TEST: added milling capability to try and 'spot' hole locations using drill function and plasma
-capabilities = CAPABILITY_MILLING | CAPABILITY_JET;
+capabilities = CAPABILITY_JET;
 
 certificationLevel = 2;
 minimumRevision = 24000;
@@ -126,31 +99,21 @@ var feedOutput = createVariable({prefix:"F"}, feedFormat);
 var safeRetractZ = 0; // safe Z coordinate for retraction
 var showSectionTools = false; // true to show the tool name in each section
 var currentCoolantMode = COOLANT_OFF; 
-var cutCount = 0;
-var operationCount = 0;
-var spotMarking = false;
 
 
 /**********
- * Post processor application dialog parameters 
- * User-defined properties
+ * user-defined properties
  *
  *******************/ 
 properties = {
-  plasmaProbeDistance:50,
-  plasmaProbeOffset:0,
-  plasmaProbeSpeed:200,
-  plasmaPierceSpeed:100,
-  plasmaPierceHeight:4,
-  plasmaSpotHeight:1,
-  plasmaPierceDelay:5,
-  plasmaSpotMarkDuration:1,
-  plasmaCutSpeed:120,
-  plasmaPositionSpeed:120,
-  plasmaCutHeight:1.5,
-  plasmaPostFlowDelay:5,
-  plasmaSafeZ:16,
-  plasmaTorchType:"pilotArc"
+  dwellInSeconds: true, 
+  G31_PROBE_DISTANCE:-50,
+  G31_PROBE_OFFSET:0,
+  G31_PROBE_SPEED:200,
+  G31_PIERCE_HEIGHT:4,
+  G31_PIERCE_DELAY:5,
+  G31_CUT_HEIGHT:1.5,
+  G31_SAFE_Z:16
 };
 
 
@@ -159,33 +122,19 @@ properties = {
  *
  *******************/
 propertyDefinitions = {
-  plasmaTorchType:{
-    title:"Plasma Torch Type",
-    description:"Select type of torch used. Scratch start will start arc when touching workpiece",
-    type: "enum",
-     values:[
-       {title:"Pilot Arc", id:"pilotArc"},
-       {title:"Scratch Start", id:"scratchStart"}
-     ]
-  },
-  plasmaProbeDistance: {title:"Probe Distance", description:"Z axis total travel for probe operation", group:0, type:"spatial"},
-  plasmaProbeOffset: {title:"Probe Offset", description:"Floating head activation distance", group:0, type:"spatial"},
-  plasmaProbeSpeed: {title:"Probe Speed", description:"Speed of probe operation", group:0, type:"number"},
-  plasmaPierceSpeed: {title:"Pierce Speed", description:"Speed of Pierce operation", group:0, type:"number"},
-	plasmaPierceHeight: {title:"Pierce Height", description:"Height for pierce operation", group:0, type:"number"},
-  plasmaPierceDelay: {title:"Pierce Delay (m/s)", description:"Delay in milliseconds after torch on before moving to cut height", group:0, type:"number"},
-  plasmaSpotHeight: {title:"Spot Height", description:"Height for spot mark operation", group:0, type:"number"},
-  plasmaSpotMarkDuration: {title:"Spot mark duration (m/s)", description:"Time in milliseconds torch is on for spot marking", group:0, type:"number"},
-  plasmaPostFlowDelay: {title:"Post Flow Delay (m/s)", description:"Delay in milliseconds after torch off before moving", group:0, type:"number"},
-  plasmaPositionSpeed: {title:"Positioning Speed", description:"Feedrate for intermediate moves", group:0, type:"number"},
-  plasmaCutSpeed: {title:"Cut Speed", description:"Feedrate for cut moves", group:0, type:"number"},
-  plasmaCutHeight: {title:"Cut Height", description:"Height of torch whilst cutting", group:0, type:"spatial"},
-  plasmaSafeZ: {title:"Safe Height", description:"Safe distance of torch above workpiece", group:0, type:"spatial"}
+	dwellInSeconds: {title:"Dwell in seconds / milliseconds", description:"True = Seconds / False = Milliseconds", group:0, type:"number"},
+  G31_PROBE_DISTANCE: {title:"Probe Distance", description:"Distance of probe operation", group:0, type:"number"},
+  G31_PROBE_OFFSET: {title:"Probe Offset", description:"Torch offset adjustment", group:0, type:"number"},
+  G31_PROBE_SPEED: {title:"Probe Speed", description:"Speed of probe operation", group:0, type:"number"},
+	G31_PIERCE_HEIGHT: {title:"Pierce Height", description:"Height for pierce operation", group:0, type:"number"},
+	G31_PIERCE_DELAY: {title:"Pierce Delay", description:"Time torch is held after pierce move", group:0, type:"number"},
+	G31_CUT_HEIGHT: {title:"Cut Height", description:"Height of torch whilst cutting", group:0, type:"number"},
+	G31_SAFE_Z: {title:"Safe Height", description:"Safe distance of torch above workpiece", group:0, type:"number"},
 };
 
 
 /**********
- * writeBlock
+ *  writeBlock
  *
  * Writes the specified block.
  *
@@ -221,7 +170,6 @@ function writeOptionalBlock() {
   }
 }
 
-
 /**********
  * formatBoundingBox
  * 
@@ -233,7 +181,6 @@ function formatBoundingBox(box) {
 	xyzFormat.format(box.lower.y) + " <= Y <= " + xyzFormat.format(box.upper.y) + " | " +
 	xyzFormat.format(box.lower.z) + " <= Z <= " + xyzFormat.format(box.upper.z);
 }
-
 
 /**********
  * formatTool
@@ -254,11 +201,10 @@ function formatTool(tool) {
   return str;
 }
 
-
 /**********
- * onOpen 
- * Called when post processor is initially run
- * This is where the file header is created
+ * onOpen
+ *
+ * Lets' create the file header
  *
  *******************/
 function onOpen() {
@@ -289,14 +235,36 @@ function onOpen() {
 	    toolpathNames.push(section.getParameter("operation-comment"));
     }
 	
-  	if (section.hasParameter('operation:clearanceHeight_value')) {
-  	  safeRetractZ = Math.max(safeRetractZ, section.getParameter('operation:clearanceHeight_value'));
-  	  if (section.getUnit() == MM && unit == IN) {
-  		safeRetractZ /= 25.4;
-  	  } else if (section.getUnit() == IN && unit == MM) {
-  		safeRetractZ *= 25.4;
-  	  }       
-  	}
+	if (section.hasParameter('operation:clearanceHeight_value')) {
+	  safeRetractZ = Math.max(safeRetractZ, section.getParameter('operation:clearanceHeight_value'));
+	  if (section.getUnit() == MM && unit == IN) {
+		safeRetractZ /= 25.4;
+	  } else if (section.getUnit() == IN && unit == MM) {
+		safeRetractZ *= 25.4;
+	  }       
+	}
+   
+	// This builds up the list of tools used in the order they are encountered, whereas getToolTable() returns an unordered list
+	var tool = section.getTool();
+	var desc = formatTool(tool);
+	if (toolsUsed.indexOf(desc) == -1)
+	  toolsUsed.push(desc);
+  }
+
+  // Normal practice is to run one post with all paths having exactly the same tool, but in some cases differently-defined tools
+  // may actually be the same physical tool but with different nominal feeds etc. This warning is only shown when the formatted tool
+  // descriptions differ.
+  if (toolsUsed.length > 1) {
+	  var answer = promptKey2("WARNING: Multiple tools are used, but tool changes are not supported.", toolsUsed.join("\r\n") + "\r\n\r\nContinue anyway?", "YN");
+	
+    if (answer != "Y") error("Tool changes are not supported");
+	  showSectionTools = true; // show the tool type used in each section.
+  }
+
+  writeComment((numberOfSections > 1 ? "Toolpaths: " : "Toolpath: ") + toolpathNames.join(", "));
+  
+  for (var i=0; i<toolsUsed.length; ++i) {
+	  writeComment(toolsUsed[i]);
   }
   
   writeComment("Workpiece:   " + formatBoundingBox(getWorkpiece()));
@@ -304,8 +272,6 @@ function onOpen() {
   writeComment("Safe Z: " + xyzFormat.format(safeRetractZ));
 
   writeln("G90"); // absolute coordinates
-  writeln("M5"); // Make sure spindle is off
-  
   
   switch (unit) {
     case IN:
@@ -320,15 +286,15 @@ function onOpen() {
   	  writeln("G64 P0.0254"); // precision in mm
   	break;
   }
+
 }
 
 
 /**********
  * onCommand
- * We're not using this at present bit lets leave it here in case someone wants it to control air etc
  *
  *******************/
-function onCommand(command) {
+ function onCommand(command) {
 	switch (command) {
 		case COMMAND_COOLANT_ON:
 		  writeln("M08");
@@ -339,16 +305,14 @@ function onCommand(command) {
 	}
 }
 
-
 /**********
  * writeComment
  *
  *******************/
 function writeComment(text) {
   text = text.replace(/\(/g," ").replace(/\)/g," ");
-  writeln("(--- " + text + " ---)");
+  writeln("(" + text + ")");
 }
-
 
 /**********
  * onComment
@@ -360,7 +324,6 @@ function onComment(message) {
 	  writeComment(comments[comment]);
   }
 }
-
 
 /**********
  * setCoolant
@@ -378,7 +341,6 @@ function setCoolant(coolant) {
   }
 }
 
-
 /**********
  * onDwell
  *
@@ -391,111 +353,58 @@ function onDwell(seconds) {
   writeBlock(gFormat.format(4), "P" + secFormat.format(seconds));
 }
 
-
 /**********
  * onPower
  *
- * This function is invoked when the power mode changes (used for water jet, laser cutter, and plasma cutter)
- * We are using it for our torch control. The 'power' variable passed to the function controls torch on / off 
+ * invoked when the power mode changes (used for water jet, laser cutter, and plasma cutter)
+ * NOTE: onPower looks to be invoked by solo Z axis movement
+ * 'power' variable effectively controls torch operation
  *******************/
 function onPower(power) {
   if (power) {
-    
-    cutCount = cutCount + 1; // Increment the cut count
-    writeComment("[START] Probe Z Axis: " + (properties.plasmaProbeDistance) + "mm @ " + (properties.plasmaProbeSpeed) + "mm/s and add " + (properties.plasmaProbeOffset) + "mm floating head offset");
-    // probe down until the torch meets the workpiece
-    writeBlock(gFormat.format(4), 'P0'); // DND (Do Not Delete)
+    writeComment("--- Touch Off ---");
     writeBlock(mFormat.format(101)); // Enable probe interrupt (skip function)
     writeBlock(gFormat.format(91)); // switch to relative positioning
-    writeBlock(gFormat.format(91), 'Z-'+(properties.plasmaProbeDistance), 'F'+(properties.plasmaProbeSpeed)) ; // move downwards until interrupt triggers
+    writeBlock(gFormat.format(91), 'Z'+(properties.G31_PROBE_DISTANCE), 'F'+(properties.G31_PROBE_SPEED)) ; // move downwards until interrupt triggers
+    writeBlock(gFormat.format(92), 'Z'+(properties.G31_PROBE_OFFSET)); // set z axis to zero 
+    writeBlock(gFormat.format(90)); // switch back to absolute positioning
     writeBlock(mFormat.format(102));  // disable probe interrupt (skip function) 
-    writeBlock(gFormat.format(4), 'P0'); // DND
-    
-    // probe up until torch clears the workpiece
-    writeBlock(mFormat.format(103)); // Enable probe interrupt (skip function)
-    writeBlock(gFormat.format(91), 'Z'+(properties.plasmaProbeDistance), 'F'+(properties.plasmaProbeSpeed)) ; // move upwards until interrupt triggers
-    writeBlock(mFormat.format(102));  // disable probe interrupt (skip function) 
-    writeBlock(gFormat.format(4), 'P0'); // DND 
-    
-    //set the z location for work surface
-    writeBlock(gFormat.format(90)); // switch to absolute positioning
-    writeBlock(gFormat.format(92), 'Z'+(properties.plasmaProbeOffset)); // set z axis offset 
-    writeBlock(gFormat.format(4), 'P0'); // DND
-    writeComment("[END] Probe Z");
-    
-    
-    // Let's set up the torch
-    
-     // If using scratch start torch - turn plasma on when torch is still touching the workpiece
-    if (properties.plasmaTorchType == 'scratchStart') { 
-      writeComment("[SCRATCH START]");
-      writeBlock(gFormat.format(0), 'Z-1'); // move towards workpiece (this is just an arbitrary distance as torch moves away during probe routine and may not be touching the workpiece)
-      writeln("S500 M3"); // This is the correct DDCSV Format for spindle (torch) control. We need the speed declaration if parameter #220 is set to 'Gcode' (which is advisable else torch turns on as soon as job starts)
-      writeBlock(gFormat.format(4), 'P0'); // DND       
-    }
-    
-    // Are we cutting through or just spot marking?
-    if (spotMarking == true) {
-      // We're spotMarking - Lets do a Spot mark!!
-      writeComment("[START] Spot Mark - Operation #" + cutCount + " @ " + (properties.plasmaSpotHeight) + "mm Spot Height with " + (properties.plasmaSpotMarkDuration) + "ms Spot Mark Duration");      
-      // turn on the torch (if its not already on)
-      writeln("S500 M3"); // correct DDCSV Format for spindle control.
-      writeBlock(gFormat.format(0), 'Z',(properties.plasmaCutHeight), 'F'+(properties.plasmaPierceSpeed)); // move up to cut height
-      writeBlock(gFormat.format(4), 'P'+(properties.plasmaSpotMarkDuration)); // wait for spot duration
-      writeBlock(mFormat.format(5)); // lets turn the torch off. just in case someone programmed some moves afterwards
-            
-    } else {      
-      // We're cutting through - Lets start a cut!!
-      writeComment("[START] Cut Path - Operation #" + cutCount + " @ " + (properties.plasmaPierceHeight) + "mm Pierce Height & " + (properties.plasmaCutHeight) + "mm Cut Height with " + (properties.plasmaPierceDelay) + "ms Pierce Delay");
-      writeBlock(gFormat.format(0), 'Z'+(properties.plasmaPierceHeight), 'F'+(properties.plasmaPierceSpeed)); // move to pierce height
-      // turn on the torch (if its not already on)
-      writeln("S500 M3"); // correct DDCSV Format for spindle control.
-      writeBlock(gFormat.format(4), 'P'+(properties.plasmaPierceDelay)); // wait for plasma delay
-      writeBlock(gFormat.format(0), 'Z',(properties.plasmaCutHeight), 'F'+(properties.plasmaPierceSpeed)); // move down to cut height
-      writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate
-      // We're now cutting!! WOOT!!
-      // the rest of the moves on the oath are processed by the 'onLinear' and 'OnCircular' functions
-      
-        
-    }
-    
-  } else { //no power so do torch off and lift head clear of workpiece
-
-    if (spotMarking == true) {
-      writeComment("[END] Spot Mark - Operation #" + cutCount);        
-    } else {
-      writeComment("[END] Cut Path - Operation #" + cutCount);        
-    }
-        
-    spotMarking = false;
-
-    writeln('F'+(properties.plasmaPositionSpeed)); // Set the positioning feed rate
-    writeBlock(mFormat.format(5)), writeBlock(gFormat.format(0), 'Z',(properties.plasmaSafeZ));
-    writeBlock(gFormat.format(4), 'P',(properties.plasmaPostFlowDelay)); // wait for post flow delay   
+    writeBlock(gFormat.format(0), 'Z',(properties.G31_PIERCE_HEIGHT)); // move to pierce height
+    writeComment("--- Torch On ---");
+    writeBlock(mFormat.format(3)); // plasma on
+    writeBlock(gFormat.format(4), 'P',(properties.G31_PIERCE_DELAY)); // wait for plasma delay
+    writeBlock(gFormat.format(0), 'Z',(properties.G31_CUT_HEIGHT)); // move down to cut height
+  } else {
+    writeComment("--- Torch off ---");
+    writeBlock(mFormat.format(5)),
+    writeBlock(gFormat.format(0), 'Z',(properties.G31_SAFE_Z));
   }
 }
 
-
 /**********
- * onCyclePoint
- * This is called for each drilling operation it includes the hole location
- * We've hacked it to move to our spot mark locations and call the torch control function (onPower) instead.
- * It's a complete bastardisation of its intended use. But it works.
+ * onSection
  *
  *******************/
-function onCyclePoint(x, y, z, r) {
-
-  // If we're in this function we are 'drilling' (spot marking) so let's set a var we can use later on.
-  spotMarking = true;
+function onSection() {
+  if (hasParameter("operation-comment")) {
+  	var comment = getParameter("operation-comment");
+  	if (comment) {
+  	  writeComment("--- " + comment + " ---");
+  	}
+  }
   
-  writeComment("Operation #" + ( cutCount + 1) + " Move to Spot Mark Location"); // tell the world
-  writeBlock(gFormat.format(0), 'X'+ x, 'Y'+ y); // move above the hole
+  // TODO - expand tool selection to include water jet + laser
+  // Checkout GRBL PP for additional clauses
   
-  onPower(1); // lets cheat and call the plasma function
-  onPower(0); // lets call the plasma function again with the 'power' set to '0'
+  // We only show the tool in each section if there are multiple tools
+  if (showSectionTools) {
+	  writeComment(formatTool(currentSection.getTool()));
+  }
+  
+  setCoolant(tool.coolant);
 
- }
-
+//  writeln("S " + currentSection.getTool().spindleRPM); // spindle speed
+}
 
 /**********
  * onRapid
@@ -506,10 +415,9 @@ function onRapid(_x, _y, _z) {
   var y = yOutput.format(_y);
   var z = zOutput.format(_z);
   if (x || y || z) {
-    writeln("G00 " + x + " " + y); // we control Z height via the plasma torch control routine (onPower)
+	  writeln("G00 " + x + " " + y + " " + z);
   }
 }
-
 
 /**********
  * onLinear
@@ -520,42 +428,47 @@ function onLinear(_x, _y, _z, feed) {
   var y = yOutput.format(_y);
   var z = zOutput.format(_z);
   var f = feedOutput.format(feed);
-
   if (x || y || z) {
-    writeln("G01 " + x + " " + y + f); // we control Z height via the plasma torch control routine (onPower)
+	  writeln("G01 " + x + " " + y + " " + z + " " + f);
   }
 }
-
 
 /**********
  * onCircular
  *
  *******************/
 function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
-  var start = getCurrentPosition();  
-  var f = feedOutput.format(feed);
+  var start = getCurrentPosition();
   
+  var f = feedOutput.format(feed);
   if (f) {
 	  writeln(f);
   }
   
   writeln((clockwise ? "G02 " : "G03 ") + 
-    xOutput.format(x) + " " +
-    yOutput.format(y) + " " +
-    iOutput.format(cx - start.x, 0) + " " +
-    jOutput.format(cy - start.y, 0)); // we control Z height via the plasma torch control routine (onPower)
-    
-    
- }
+	xOutput.format(x) + " " +
+	yOutput.format(y) + " " +
+	zOutput.format(z) + " " +
+	iOutput.format(cx - start.x, 0) + " " +
+	jOutput.format(cy - start.y, 0));
+}
 
+/**********
+ * onOrientateSpindle
+ *
+ *******************/
+function onOrientateSpindle(_a) {
+  var a = xOutput.format(_a);
+  if (a) {
+	  writeln("G01 " + a);
+  }
+}
 
 /**********
  * onClose
  *
  *******************/
 function onClose() {
-  writeComment("JOB FINISH");
-
   writeln("G00 " + zOutput.format(safeRetractZ)); // retract to safe Z
 
   setCoolant(COOLANT_OFF); // turn air off?
@@ -566,12 +479,10 @@ function onClose() {
   writeln("M2");
 }
 
-
 /**********
  * onCycle
  *
  *******************/
-function onSection() {
-  operationCount = operationCount + 1;
-	writeComment("Setup #" + operationCount);
+function onCycle() {
+	
 }
