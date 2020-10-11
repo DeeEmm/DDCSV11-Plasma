@@ -20,7 +20,7 @@ Users>MAC USERNAME>Library>Containers>com.autodesk.mas.fusion360>Data>Autodesk>F
 
 You will need to make hidden files visible to be able to see the Library folder. You can either do this by pressing the OPTION key whilst viewing the ‘Go’ menu in Finder, or you can toggle the visibility of all hidden files by pressing ‘CMD + SHIFT + .’ whist in Finder.
 
-On a windows machine the path is different (sorry cannot help you there)
+(Note for those still using Windows OS: the path is %appdata%\Autodesk\Fusion 360 CAM\Posts)
 
 
 ## Basic Usage
