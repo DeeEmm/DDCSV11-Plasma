@@ -44,6 +44,9 @@ Here's a video of a file made with the post processor demonstrating the sequence
 
 [![DDCSV Plasma Post Processor](http://img.youtube.com/vi/roLoUEFVtAE/0.jpg)](http://www.youtube.com/watch?v=roLoUEFVtAE "Video Title")
 
+and another video with a step-by-step walkthrough which covers how to install the post processor, how to create a simple model in Fusion360 and how to create CAM toolpaths and export them to Gcode using the manufacture workspace and the DDCSV-Plasma post processor.
+
+[![DDCSV Plasma Post Processor](http://img.youtube.com/vi/FzAZNHg6ciQ/0.jpg)](http://www.youtube.com/watch?v=FzAZNHg6ciQ "Video Title")
 
 
 ## Further information
