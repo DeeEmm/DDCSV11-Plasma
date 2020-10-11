@@ -1,7 +1,7 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
 
-11.10.20 - Version 1.0.20101101
+11.10.20 - Version 1.0.20101102
       - Added cut and feed in/out speeds
 
 09.10.20 - Version 1.0.20100901
