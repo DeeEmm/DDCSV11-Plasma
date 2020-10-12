@@ -53,6 +53,8 @@ and another video with a step-by-step walkthrough which covers how to install th
 
 https://deeemm.com/general/2020/09/30/ddcsv-fusion360-plasma-post-processor.html
 
+https://deeemm.com/cnc/2020/10/09/fusion360-plasma-spot-marking.html
+
 
 ## Support
 
