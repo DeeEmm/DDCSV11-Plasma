@@ -1,6 +1,9 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
 
+11.10.20 - Version 1.0.20101201
+    - Corrected millisecond abbreviation
+
 11.10.20 - Version 1.0.20101102
     - Added cut and feed in/out speeds
 
@@ -81,7 +84,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
  ******************************************************************************/
 
-description = "DDCSV Plasma V1.0.20100901";
+description = "DDCSV Plasma V1.0.20101201";
 vendor = "DeeEmm";
 vendorUrl = "https://github.com/DeeEmm/DDCSV11-Plasma";
 legal="BSD License";
@@ -173,10 +176,10 @@ propertyDefinitions = {
   plasmaProbeSpeed: {title:"Probe Speed", description:"Speed of probe operation", group:0, type:"number"},
   plasmaPierceSpeed: {title:"Pierce Speed", description:"Speed of Pierce operation", group:0, type:"number"},
   plasmaPierceHeight: {title:"Pierce Height", description:"Height for pierce operation", group:0, type:"number"},
-  plasmaPierceDelay: {title:"Pierce Delay (m/s)", description:"Delay in milliseconds after torch on before moving to cut height", group:0, type:"number"},
+  plasmaPierceDelay: {title:"Pierce Delay (ms)", description:"Delay in milliseconds after torch on before moving to cut height", group:0, type:"number"},
   plasmaSpotHeight: {title:"Spot Height", description:"Height for spot mark operation", group:0, type:"number"},
-  plasmaSpotMarkDuration: {title:"Spot mark duration (m/s)", description:"Time in milliseconds torch is on for spot marking", group:0, type:"number"},
-  plasmaPostFlowDelay: {title:"Post Flow Delay (m/s)", description:"Delay in milliseconds after torch off before moving", group:0, type:"number"},
+  plasmaSpotMarkDuration: {title:"Spot mark duration (ms)", description:"Time in milliseconds torch is on for spot marking", group:0, type:"number"},
+  plasmaPostFlowDelay: {title:"Post Flow Delay (ms)", description:"Delay in milliseconds after torch off before moving", group:0, type:"number"},
   plasmaPositionSpeed: {title:"Positioning Speed", description:"Feedrate for intermediate moves", group:0, type:"number"},
   plasmaCutSpeed: {title:"Cut Speed", description:"Feedrate for cut moves", group:0, type:"number"},
   plasmaCutHeight: {title:"Cut Height", description:"Height of torch whilst cutting", group:0, type:"spatial"},
