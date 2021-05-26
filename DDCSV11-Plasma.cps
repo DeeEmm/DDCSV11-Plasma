@@ -1,9 +1,6 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
 
-26.05.21 - Version 1.0.21052601
-    - Changed Pierce height to allow sub mm increments
-
 12.10.20 - Version 1.0.20101201
     - Corrected millisecond abbreviation
 
@@ -143,19 +140,19 @@ var spotMarking = false;
  *
  *******************/ 
 properties = {
-  plasmaProbeDistance:20,
-  plasmaProbeOffset:-1.47,
-  plasmaProbeSpeed:1200,
-  plasmaPierceSpeed:600,
+  plasmaProbeDistance:50,
+  plasmaProbeOffset:0,
+  plasmaProbeSpeed:200,
+  plasmaPierceSpeed:100,
   plasmaPierceHeight:4,
   plasmaSpotHeight:1,
-  plasmaPierceDelay:1000,
-  plasmaSpotMarkDuration:10,
-  plasmaCutSpeed:600,
-  plasmaPositionSpeed:2000,
+  plasmaPierceDelay:5,
+  plasmaSpotMarkDuration:1,
+  plasmaCutSpeed:120,
+  plasmaPositionSpeed:120,
   plasmaCutHeight:1.5,
   plasmaPostFlowDelay:5,
-  plasmaSafeZ:5,
+  plasmaSafeZ:16,
   plasmaTorchType:"pilotArc"
 };
 
@@ -425,7 +422,6 @@ function onPower(power) {
   
   //set the z location for work surface
   writeBlock(gFormat.format(90)); // switch to absolute positioning
-  writeBlock(gFormat.format(4), 'P0'); // DND
   writeBlock(gFormat.format(92), 'Z'+(properties.plasmaProbeOffset)); // set z axis offset 
   writeBlock(gFormat.format(4), 'P0'); // DND
   writeComment("[END] Probe Z");
@@ -452,17 +448,16 @@ function onPower(power) {
     writeBlock(mFormat.format(5)); // lets turn the torch off. just in case someone programmed some moves afterwards
       
   } else {      
-
     // We're cutting through - Lets start a cut!!
     writeComment("[START] Cut Path - Operation #" + cutCount + " @ " + (properties.plasmaPierceHeight) + "mm Pierce Height & " + (properties.plasmaCutHeight) + "mm Cut Height with " + (properties.plasmaPierceDelay) + "ms Pierce Delay");
-    writeBlock(gFormat.format(0), 'Z'+(properties.plasmaPierceHeight), 'F'+(properties.plasmaPositionSpeed)); // move to pierce height
+    writeBlock(gFormat.format(0), 'Z'+(properties.plasmaPierceHeight), 'F'+(properties.plasmaPierceSpeed)); // move to pierce height
     // turn on the torch (if its not already on)
     writeln("S500 M3"); // correct DDCSV Format for spindle control.
     writeBlock(gFormat.format(4), 'P'+(properties.plasmaPierceDelay)); // wait for plasma delay
     writeBlock(gFormat.format(0), 'Z',(properties.plasmaCutHeight), 'F'+(properties.plasmaPierceSpeed)); // move down to cut height
     writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate
     // We're now cutting!! WOOT!!
-    // the rest of the moves on the path are processed by the 'onLinear' and 'OnCircular' functions
+    // the rest of the moves on the oath are processed by the 'onLinear' and 'OnCircular' functions
     
     
   }
