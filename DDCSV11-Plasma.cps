@@ -1,10 +1,6 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
 
-26.05.21 - Version 1.0.21052601
-    - Changed Pierce height to allow sub mm increments
-    - Changed z probe approach speed
-
 12.10.20 - Version 1.0.20101201
     - Corrected millisecond abbreviation
 
@@ -145,16 +141,16 @@ var spotMarking = false;
  *******************/ 
 properties = {
   plasmaProbeDistance:20,
-  plasmaProbeOffset:-1.47,
+  plasmaProbeOffset:-3.101,
   plasmaProbeSpeed:1200,
   plasmaPierceSpeed:200,
   plasmaPierceHeight:4,
   plasmaSpotHeight:1,
-  plasmaPierceDelay:5000,
+  plasmaPierceDelay:1000,
   plasmaSpotMarkDuration:10,
   plasmaCutSpeed:600,
   plasmaPositionSpeed:2000,
-  plasmaCutHeight:1.5,
+  plasmaCutHeight:2.36,
   plasmaPostFlowDelay:5,
   plasmaSafeZ:5,
   plasmaTorchType:"pilotArc"
