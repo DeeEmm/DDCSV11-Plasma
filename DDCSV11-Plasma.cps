@@ -1,36 +1,13 @@
 /******************************************************************************* 
 DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark controllers
 
-<<<<<<< HEAD
-12.10.20 - Version 1.0.20101201
-    - Corrected Millisecond abbreviation
-=======
-26.05.21 - Version 1.0.21052601
-    - Changed Pierce height to allow sub mm increments
-    - Changed z probe approach speed
-
-12.10.20 - Version 1.0.20101201
-    - Corrected millisecond abbreviation
->>>>>>> f59ed67886decc1a049fdf4a516c453fd547edbd
-
-11.10.20 - Version 1.0.20101102
-    - Added cut and feed in/out speeds
-
-09.10.20 - Version 1.0.20100901
-    - Added scratch start option (added torch type)
-    - Added Spot marking operation (using 'drilling' function)
-    - Tidied up the code removing unwanted / redundant stuff.
-    - Added better comments
-
-06.10.20 - Version 1.0.20100602
-    - Removed Z components from moves (relies on last set Z position) 
-    - Enabled both M101 (probe down) and M103 (probe up) as both required to generate offset
-    - Set G90 before G92 in probe routine
-    - Added additional comments to generated code
-
-06.10.20 - Version 1.0.20100601
-    - Added manual probe offset 
-    - Renamed existing probe offset function to probe distance
+    
+01.10.20 - Version 1.0.20100101
+      - Initial version based on https://www.brainright.com/Projects/CNCController
+      - Milling control changed for Plasma control
+      - Added pierce delay
+      - Added touch off routine
+      - Added user selectable cut + pierce height / pierce delay / Z offsets
 
 05.10.20 - Version 1.0.20100501
     - Tidied comments
@@ -39,15 +16,36 @@ DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark c
     - Changed direction of Z probe action 
     - Modified onPower function for probe operation
     - Tested in Fusion 360 and on DDSCSV 
-    
-01.10.20 	- Version 1.0.20100101
-      - Initial version based on https://www.brainright.com/Projects/CNCController
-      - Milling control changed for Plasma control
-      - Added pierce delay
-      - Added touch off routine
-      - Added user selectable cut + pierce height / pierce delay / Z offsets
 
-      
+06.10.20 - Version 1.0.20100601
+    - Added manual probe offset 
+    - Renamed existing probe offset function to probe distance      
+
+06.10.20 - Version 1.0.20100602
+    - Removed Z components from moves (relies on last set Z position) 
+    - Enabled both M101 (probe down) and M103 (probe up) as both required to generate offset
+    - Set G90 before G92 in probe routine
+    - Added additional comments to generated code
+
+09.10.20 - Version 1.0.20100901
+    - Added scratch start option (added torch type)
+    - Added Spot marking operation (using 'drilling' function)
+    - Tidied up the code removing unwanted / redundant stuff.
+    - Added better comments
+
+11.10.20 - Version 1.0.20101102
+    - Added cut and feed in/out speeds
+
+12.10.20 - Version 1.0.20101201
+    - Corrected millisecond abbreviation
+
+13.08.21 - Version 1.0.21081301
+    - Commented out superfluous feed rate overrides (Issue #2)
+    
+15.08.21 - Version 1.0.21081501
+    - reverted previous change
+    - Added tool change handling to use with https://github.com/TimPaterson/Fusion360-Batch-Post
+
 
 Usage
 ******************************************************************************** 
@@ -69,8 +67,10 @@ to make sure the WCS origin for all operations is set to the same location. Best
 
 - More info on the Github page - https://github.com/DeeEmm/DDCSV11-Plasma
 
-  
-    
+- Guidelines for plasma setup
+- NOTE: Piercing at a height 1.5 to 2 times the recommended cut height is recommended.
+- NOTE: Amperage 10x material thickness (mm) 
+- NOTE: Pierce speed approximately 1/2 - 2/3 cut feed rate
       
 Reference
 ******************************************************************************** 
@@ -93,7 +93,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
  ******************************************************************************/
 
-description = "DDCSV Plasma V1.0.20101201";
+description = "DDCSV Plasma V1.0.20210801";
 vendor = "DeeEmm";
 vendorUrl = "https://github.com/DeeEmm/DDCSV11-Plasma";
 legal="BSD License";
@@ -125,6 +125,7 @@ var dFormat = createFormat({prefix:"D", decimals:0});
 var xyzFormat = createFormat({decimals:(3), forceDecimal:true, trim:false});
 var feedFormat = createFormat({decimals:(unit == MM ? 0 : 1), forceDecimal:false});
 var taperFormat = createFormat({decimals:1, scale:DEG});
+var toolFormat = createFormat({decimals:0});
 
 var xOutput = createVariable({prefix:"X", force:true}, xyzFormat);
 var yOutput = createVariable({prefix:"Y", force:true}, xyzFormat);
@@ -149,18 +150,18 @@ var spotMarking = false;
  *
  *******************/ 
 properties = {
-  plasmaProbeDistance:20,
-  plasmaProbeOffset:-1.47,
-  plasmaProbeSpeed:1200,
+  plasmaProbeDistance:50,
+  plasmaProbeOffset:-2.35,
+  plasmaProbeSpeed:300,
   plasmaPierceSpeed:200,
-  plasmaPierceHeight:4,
-  plasmaSpotHeight:1,
-  plasmaPierceDelay:5000,
-  plasmaSpotMarkDuration:10,
-  plasmaCutSpeed:600,
-  plasmaPositionSpeed:2000,
+  plasmaPierceHeight:3.5,
+  plasmaSpotHeight:1.5,
+  plasmaPierceDelay:750,
+  plasmaSpotMarkDuration:50,
+  plasmaCutSpeed:325,
+  plasmaPositionSpeed:1800,
   plasmaCutHeight:1.5,
-  plasmaPostFlowDelay:5,
+  plasmaPostFlowDelay:1500,
   plasmaSafeZ:5,
   plasmaTorchType:"pilotArc"
 };
@@ -290,6 +291,7 @@ function onOpen() {
   var toolsUsed = []; // Tools used (hopefully just one) in the order they are used 
   var toolpathNames = []; // Names of toolpaths, i.e. sections
   
+  
   var numberOfSections = getNumberOfSections(); 
   for (var i = 0; i < numberOfSections; ++i) {
     var section = getSection(i);
@@ -314,6 +316,8 @@ function onOpen() {
   writeComment("Workpiece:   " + formatBoundingBox(getWorkpiece()));
   writeComment("Tool travel: " + formatBoundingBox(globalBounds));
   writeComment("Safe Z: " + xyzFormat.format(safeRetractZ));
+  
+  var tool = section.getTool();
 
   writeln("G90"); // absolute coordinates
   writeln("M5"); // Make sure spindle is off
@@ -332,12 +336,16 @@ function onOpen() {
     writeln("G64 P0.0254"); // precision in mm
     break;
   }
+
+  
+
 }
+
 
 
 /**********
  * onCommand
- * We're not using this at present bit lets leave it here in case someone wants it to control air etc
+ * We're not using this at present but lets leave it here in case someone wants it to control air etc
  *
  *******************/
 function onCommand(command) {
@@ -434,7 +442,7 @@ function onPower(power) {
   writeBlock(gFormat.format(4), 'P0'); // DND
   writeBlock(gFormat.format(92), 'Z'+(properties.plasmaProbeOffset)); // set z axis offset 
   writeBlock(gFormat.format(4), 'P0'); // DND
-  writeComment("[END] Probe Z");
+  //writeComment("[END] Probe Z");
   
   
   // Let's set up the torch
@@ -465,8 +473,9 @@ function onPower(power) {
     // turn on the torch (if its not already on)
     writeln("S500 M3"); // correct DDCSV Format for spindle control.
     writeBlock(gFormat.format(4), 'P'+(properties.plasmaPierceDelay)); // wait for plasma delay
+    writeln('F'+(properties. plasmaPierceSpeed)); // Set the pierce feed rate 
     writeBlock(gFormat.format(0), 'Z',(properties.plasmaCutHeight), 'F'+(properties.plasmaPierceSpeed)); // move down to cut height
-    writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate
+    writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate  
     // We're now cutting!! WOOT!!
     // the rest of the moves on the path are processed by the 'onLinear' and 'OnCircular' functions
     
@@ -476,9 +485,9 @@ function onPower(power) {
   } else { //no power so do torch off and lift head clear of workpiece
 
   if (spotMarking == true) {
-    writeComment("[END] Spot Mark - Operation #" + cutCount);        
+    //writeComment("[END] Spot Mark - Operation #" + cutCount);        
   } else {
-    writeComment("[END] Cut Path - Operation #" + cutCount);        
+    //writeComment("[END] Cut Path - Operation #" + cutCount);        
   }
     
   spotMarking = false;
@@ -568,24 +577,44 @@ function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
  *
  *******************/
 function onClose() {
-  writeComment("JOB FINISH");
-
-  writeln("G00 " + zOutput.format(safeRetractZ)); // retract to safe Z
+  
 
   setCoolant(COOLANT_OFF); // turn air off?
 
   onImpliedCommand(COMMAND_STOP_SPINDLE); 
+ 
+  //onImpliedCommand(COMMAND_END);
   writeln("M5"); // turn plasma off
-  onImpliedCommand(COMMAND_END);
-  writeln("M2");
+  
+  
+  // Various end commands - uncomment whichever works with your setup
+  //writeln("G00 " + zOutput.format(safeRetractZ)); // retract to safe Z
+  //writeln("G28 " + zOutput.format(safeRetractZ)); // return to home 
+  //writeln("M02");
+  writeln("M30"); // (used by Fusion360 'Post Process All' - https://github.com/TimPaterson/Fusion360-Batch-Post)
+  //writeln("M99");
+  
+  writeComment("JOB FINISH");
+  
+  
 }
 
 
 /**********
- * onCycle
+ * onSection
  *
  *******************/
 function onSection() {
   operationCount = operationCount + 1;
   writeComment("Setup #" + operationCount);
+
+  var insertToolCall = isFirstSection() || (tool.number != getPreviousSection().getTool().number);
+
+   if (insertToolCall) {
+      	//writeBlock("T" + toolFormat.format(tool.number), mFormat.format(6));
+	    writeBlock("T" + toolFormat.format(tool.number)); // (used by Fusion360 'Post Process All' - https://github.com/TimPaterson/Fusion360-Batch-Post)
+      // Note, to prevent z change issues relating to different tool offsets, make sure you select same tool number on post processor tab for all tools
+   }
 }
+
+
