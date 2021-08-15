@@ -67,7 +67,7 @@ to make sure the WCS origin for all operations is set to the same location. Best
 
 - More info on the Github page - https://github.com/DeeEmm/DDCSV11-Plasma
 
-- Guidelines for plasma setup
+- Guidelines for plasma settings
 - NOTE: Piercing at a height 1.5 to 2 times the recommended cut height is recommended.
 - NOTE: Amperage 10x material thickness (mm) 
 - NOTE: Pierce speed approximately 1/2 - 2/3 cut feed rate
