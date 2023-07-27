@@ -46,6 +46,12 @@ DeeEmm Plasma post processor for DDCSV1/2/3 and Next Wave Automation CNC Shark c
     - reverted previous change
     - Added tool change handling to use with https://github.com/TimPaterson/Fusion360-Batch-Post
 
+21.05.23 - Version 1.0.23052101
+    - Added option for 3D cutting. Boolean option to process Z axis moves.
+
+27.07.23 - Version 1.0.23072701
+    - Changed code to pull pierce height / pierce delay and cut height directly from tool parameters
+
 
 Usage
 ******************************************************************************** 
@@ -151,19 +157,20 @@ var spotMarking = false;
  *******************/ 
 properties = {
   plasmaProbeDistance:50,
-  plasmaProbeOffset:-2.35,
+  plasmaProbeOffset:-3.15,
   plasmaProbeSpeed:300,
   plasmaPierceSpeed:200,
-  plasmaPierceHeight:3.5,
+  // plasmaPierceHeight:3.8,
   plasmaSpotHeight:1.5,
-  plasmaPierceDelay:750,
-  plasmaSpotMarkDuration:50,
-  plasmaCutSpeed:325,
+  // plasmaPierceDelay:1250,
+  plasmaSpotMarkDuration:100,
+  // plasmaCutSpeed:325,
   plasmaPositionSpeed:1800,
-  plasmaCutHeight:1.5,
+  // plasmaCutHeight:1.5,
   plasmaPostFlowDelay:1500,
-  plasmaSafeZ:5,
-  plasmaTorchType:"pilotArc"
+  plasmaSafeZ:10,
+  plasmaTorchType:"pilotArc",
+  plasma3Dcut: false
 };
 
 
@@ -173,14 +180,15 @@ properties = {
  *******************/
 propertyDefinitions = {
   plasmaTorchType:{
-  title:"Plasma Torch Type",
-  description:"Select type of torch used. Scratch start will start arc when touching workpiece",
-  type: "enum",
-   values:[
-     {title:"Pilot Arc", id:"pilotArc"},
-     {title:"Scratch Start", id:"scratchStart"}
-   ]
-  },
+    title:"Plasma Torch Type",
+    description:"Select type of torch used. Scratch start will start arc when touching workpiece",
+    type: "enum",
+     values:[
+       {title:"Pilot Arc", id:"pilotArc"},
+       {title:"Scratch Start", id:"scratchStart"}
+     ]
+    },
+  plasma3Dcut:{title:"3D cut", description:"Control torch in X,Y and Z", type: "boolean" },
   plasmaProbeDistance: {title:"Probe Distance", description:"Z axis total travel for probe operation", group:0, type:"spatial"},
   plasmaProbeOffset: {title:"Probe Offset", description:"Floating head activation distance", group:0, type:"spatial"},
   plasmaProbeSpeed: {title:"Probe Speed", description:"Speed of probe operation", group:0, type:"number"},
@@ -468,14 +476,58 @@ function onPower(power) {
   } else {      
 
     // We're cutting through - Lets start a cut!!
-    writeComment("[START] Cut Path - Operation #" + cutCount + " @ " + (properties.plasmaPierceHeight) + "mm Pierce Height & " + (properties.plasmaCutHeight) + "mm Cut Height with " + (properties.plasmaPierceDelay) + "ms Pierce Delay");
-    writeBlock(gFormat.format(0), 'Z'+(properties.plasmaPierceHeight), 'F'+(properties.plasmaPositionSpeed)); // move to pierce height
+
+    // var tools = getToolTable();
+    // if (tools.getNumberOfTools() > 0) {
+    //   var diaFormat = createFormat({decimals:4, trim:false});
+    //   var twodecFormat = createFormat({decimals:2});
+    //   for (var i = 0; i < tools.getNumberOfTools(); ++i) {
+    //     var tool = tools.getTool(i);
+    //     var comment = "T" + toolFormat.format(tool.number) + " - ";
+    //     comment+= "PierceHeight: " + getParameter("operation:tool_pierceHeight") + " - ";
+    //     writeln(comment);
+    //   }
+    // }
+
+    // Get cut data directly from tool 
+
+    if(hasParameter("operation:tool_pierceTime")) {
+      pDelay = getParameter("operation:tool_pierceTime");
+      writeComment("NOTE: pierceDelay value from tool");
+    } else {
+      pDelay = properties.plasmaPierceDelay
+    }
+
+    if(hasParameter("operation:tool_pierceHeight")) {
+      pHeight = getParameter("operation:tool_pierceHeight");
+      writeComment("NOTE: pierceHeight value from tool");
+    } else {
+      pHeight = properties.plasmaPierceHeight
+    }
+
+    if(hasParameter("operation:tool_cutHeight")) {
+      cHeight = getParameter("operation:tool_cutHeight");
+      writeComment("NOTE: cutHeight value from tool");
+    } else {
+      cHeight = properties.plasmaCutHeight
+    }
+
+
+    writeComment("[START] Cut Path - Operation #" + cutCount + " @ " + pHeight + "mm Pierce Height & " + cHeight + "mm Cut Height with " + pDelay + "ms Pierce Delay");
+    writeBlock(gFormat.format(0), 'Z'+pHeight, 'F'+(properties.plasmaPositionSpeed)); // move to pierce height
     // turn on the torch (if its not already on)
     writeln("S500 M3"); // correct DDCSV Format for spindle control.
-    writeBlock(gFormat.format(4), 'P'+(properties.plasmaPierceDelay)); // wait for plasma delay
+    writeBlock(gFormat.format(4), 'P'+pDelay); // wait for plasma delay
     writeln('F'+(properties. plasmaPierceSpeed)); // Set the pierce feed rate 
-    writeBlock(gFormat.format(0), 'Z',(properties.plasmaCutHeight), 'F'+(properties.plasmaPierceSpeed)); // move down to cut height
-    writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate  
+    writeBlock(gFormat.format(0), 'Z',cHeight, 'F'+(properties.plasmaPierceSpeed)); // move down to cut height
+    // writeln('F'+(properties.plasmaCutSpeed)); // Set the cut feed rate  
+
+    var f = 'F'+(hasParameter("operation:tool_feedEntry") ? getParameter("operation:tool_feedCutting") : toPreciseUnit(1000, MM));
+
+    if (f) {
+      writeln(f);
+    }
+
     // We're now cutting!! WOOT!!
     // the rest of the moves on the path are processed by the 'onLinear' and 'OnCircular' functions
     
@@ -542,10 +594,15 @@ function onLinear(_x, _y, _z, feed) {
   var x = xOutput.format(_x);
   var y = yOutput.format(_y);
   var z = zOutput.format(_z);
-  var f = feedOutput.format(feed);
+  // var f = feedOutput.format(feed);  
+  var f = 'F'+(hasParameter("operation:tool_feedEntry") ? getParameter("operation:tool_feedEntry") : toPreciseUnit(1000, MM));
 
   if (x || y || z) {
-  writeln("G01 " + x + " " + y + f); // we control Z height via the plasma torch control routine (onPower)
+    if (properties.plasma3Dcut == true) { 
+      writeln("G01 " + x + " " + y + " " + z + " " + f); // we include Z height for cutting non 2D surfaces (tubes etc)
+    } else {
+      writeln("G01 " + x + " " + y + " " + f); // we control Z height via the plasma torch control routine (onPower) + THC
+    }
   }
 }
 
@@ -556,18 +613,31 @@ function onLinear(_x, _y, _z, feed) {
  *******************/
 function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
   var start = getCurrentPosition();  
-  var f = feedOutput.format(feed);
+  // var f = feedOutput.format(feed);
+  var f = 'F'+(hasParameter("operation:tool_feedEntry") ? getParameter("operation:tool_feedEntry") : toPreciseUnit(1000, MM));
   
   if (f) {
     writeln(f);
   }
   
-  writeln((clockwise ? "G02 " : "G03 ") + 
-  xOutput.format(x) + " " +
-  yOutput.format(y) + " " +
-  iOutput.format(cx - start.x, 0) + " " +
-  jOutput.format(cy - start.y, 0)); // we control Z height via the plasma torch control routine (onPower)
+  if (properties.plasma3Dcut == true) { 
+
+    writeln((clockwise ? "G02 " : "G03 ") + 
+    xOutput.format(x) + " " +
+    yOutput.format(y) + " " +
+    iOutput.format(cx - start.x, 0) + " " +
+    jOutput.format(cy - start.y, 0) + " " +
+    jOutput.format(cz - start.z, 0)); // we include Z height for cutting non 2D surfaces (tubes etc)
+    
+  } else {
+
+    writeln((clockwise ? "G02 " : "G03 ") + 
+    xOutput.format(x) + " " +
+    yOutput.format(y) + " " +
+    iOutput.format(cx - start.x, 0) + " " +
+    jOutput.format(cy - start.y, 0)); // we control Z height via the plasma torch control routine (onPower)
   
+  }
   
  }
 
